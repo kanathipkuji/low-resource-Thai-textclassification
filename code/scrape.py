@@ -67,7 +67,7 @@ data = {
     'adv_search_law_other[]': '',
 }
 
-output_path = './out/deka_criminal_cases.csv'
+output_path = './out/deka_criminal_cases_3.csv'
 num_cases = 0
 
 try:
@@ -76,14 +76,16 @@ try:
     print(num_cases)
 except:
     pass
+
 # pages = 1319
-start_page = 5
-end_page = 500
+start_page = 364
+end_page = 1319
 
 for page in range(start_page, end_page + 1):
+    print(f'scraping page: {page}')
+
     url = f'http://deka.supremecourt.or.th/search/index/{page}'
     response = requests.post(url, cookies=cookies, headers=headers, data=data, verify=False)
-    print(f'scraping page: {page}')
 
     res_list_of_dict = []
 
@@ -100,46 +102,46 @@ for page in range(start_page, end_page + 1):
             for item in items:
                 classes = item.get_attribute_list('class')
                 if 'print_item_deka_no' in classes:
-                    res_dict['deka_no'] = item.get_text()
-                    # deka_nos.append(item.get_text())
+                    res_dict['deka_no'] = f'\"{item.get_text()}\"'
+                    # deka_nos.append(f'\"{item.get_text()}\"')
                 elif 'print_item_litigant' in classes:
-                    res_dict['litigant'] = item.get_text()
-                    # litigants.append(item.get_text())
+                    res_dict['litigant'] = f'\"{item.get_text()}\"'
+                    # litigants.append(f'\"{item.get_text()}\"')
                 elif 'print_item_law' in classes:
-                    res_dict['law'] = item.get_text()
-                    # laws.append(item.get_text())
+                    res_dict['law'] = f'\"{item.get_text()}\"'
+                    # laws.append(f'\"{item.get_text()}\"')
                 elif 'print_item_short_text' in classes:
-                    res_dict['short_text'] = item.get_text()
-                    # short_texts.append(item.get_text())
+                    res_dict['short_text'] = f'\"{item.get_text()}\"'
+                    # short_texts.append(f'\"{item.get_text()}\"')
                 elif 'print_item_long_text' in classes:
-                    res_dict['long_text'] = item.get_text()
-                    # long_texts.append(item.get_text())
+                    res_dict['long_text'] = f'\"{item.get_text()}\"'
+                    # long_texts.append(f'\"{item.get_text()}\"')
                 elif 'print_item_judge' in classes:
-                    res_dict['judge'] = item.get_text()
-                    # judges.append(item.get_text())
+                    res_dict['judge'] = f'\"{item.get_text()}\"'
+                    # judges.append(f'\"{item.get_text()}\"')
                 elif 'print_item_primarycourt' in classes:
-                    res_dict['primary_court'] = item.get_text()
-                    # primary_courts.append(item.get_text())
+                    res_dict['primary_court'] = f'\"{item.get_text()}\"'
+                    # primary_courts.append(f'\"{item.get_text()}\"')
                 elif 'print_item_source' in classes:
-                    res_dict['source'] = item.get_text()
-                    # sources.append(item.get_text())
+                    res_dict['source'] = f'\"{item.get_text()}\"'
+                    # sources.append(f'\"{item.get_text()}\"')
                 elif 'print_item_department' in classes:
-                    res_dict['department'] = item.get_text()
-                    # departments.append(item.get_text())
+                    res_dict['department'] = f'\"{item.get_text()}\"'
+                    # departments.append(f'\"{item.get_text()}\"')
                 elif 'print_item_deka_black_no' in classes:
-                    res_dict['deka_black_no'] = item.get_text()
-                    # black_nos.append(item.get_text())
+                    res_dict['deka_black_no'] = f'\"{item.get_text()}\"'
+                    # black_nos.append(f'\"{item.get_text()}\"')
                 elif 'print_item_primartcourt_deka_no' in classes:
                     text = item.get_text()
                     if text.startswith('หมายเลขคดีดำ'):
-                        res_dict['primary_black_no'] = item.get_text()
-                        # primary_black_nos.append(item.get_text())
+                        res_dict['primary_black_no'] = f'\"{text}\"'
+                        # primary_black_nos.append(f'\"{item.get_text()}\"')
                     else:
-                        res_dict['primary_red_no'] = item.get_text()
-                        # primary_red_nos.append(item.get_text())
+                        res_dict['primary_red_no'] = f'\"{item.get_text()}\"'
+                        # primary_red_nos.append(f'\"{item.get_text()}\"')
                 elif 'print_item_remark' in classes:
-                    res_dict['remarks'] = item.get_text()
-                    # remarks.append(item.get_text())
+                    res_dict['remarks'] = f'\"{item.get_text()}\"'
+                    # remarks.append(f'\"{item.get_text()}\"')
             res_list_of_dict.append(res_dict)
         time.sleep(random.randint(3, 7))
     else:

@@ -3,11 +3,11 @@ FROM nvidia/cuda:12.2.0-devel-ubuntu20.04
 
 ENV PATH="/root/miniconda3/bin:${PATH}"
 ARG PATH="/root/miniconda3/bin:${PATH}"
-
-RUN apt-get update && apt-get install -y \
-    sudo \
-    wget \
-    vim
+RUN apt-get update && \
+  apt-get install -y tmux \
+  curl \
+  wget \
+  && rm -rf /var/lib/apt/lists/*
 
 RUN wget \
     https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-aarch64.sh \

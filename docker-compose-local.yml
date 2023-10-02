@@ -1,0 +1,6 @@
+version: "3.9"
+services:
+  my-jupyter-image:
+    volumes:
+      # MAC OS
+      - "/Volumes/CL/workspace/pattarakultawee.k.aa:/home/workspace"

@@ -1,0 +1,17 @@
+version: "3.9"
+services:
+  my-jupyter-image:
+    volumes:
+      # UNIX
+      - "/mnt/CL/workspace/pattarakultawee.k.aa:/home/workspace"
+
+    # Use this only on the server
+    deploy:
+      resources:
+        reservations:
+          devices:
+          - driver: nvidia
+            #which gpus you want to use
+            #specify device ids or 'all'
+            device_ids: ['0']
+            capabilities: [gpu]

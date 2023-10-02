@@ -10,9 +10,9 @@ RUN apt-get update && apt-get install -y \
     vim
 
 RUN wget \
-    https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-aarch64.sh \
+    https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
     && mkdir /root/.conda
-RUN bash Miniconda3-latest-Linux-aarch64.sh -b \
+RUN bash Miniconda3-latest-Linux-x86_64.sh -b \
     && rm -f Miniconda3-latest-Linux-x86_64.sh
 
 WORKDIR /app
@@ -20,7 +20,7 @@ WORKDIR /app
 COPY environment.yml /app/
 
 RUN conda env create -f environment.yml
-RUN conda install -c anaconda gcc_linux-aarch64
+RUN conda install -c anaconda gcc_linux-64
 RUN pip install -q emoji pythainlp==2.2.4 sefr_cut tinydb seqeval sentencepiece pydantic jsonlines
 RUN pip install --no-deps thai2transformers==0.1.2
 

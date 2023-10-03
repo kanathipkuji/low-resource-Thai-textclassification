@@ -15,9 +15,9 @@ RUN wget \
 RUN bash Miniconda3-latest-Linux-x86_64.sh -b \
     && rm -f Miniconda3-latest-Linux-x86_64.sh
 
-WORKDIR /app
+WORKDIR /home/workspace
 
-COPY environment.yml /app/
+COPY environment.yml /home/workspace
 
 RUN conda env create -f environment.yml
 RUN conda install -c anaconda gcc_linux-64

@@ -4,6 +4,7 @@ services:
     volumes:
       # UNIX
       - "/mnt/CL/workspace/pattarakultawee.k.aa:/home/workspace"
+      - "/home/pattarakultawee.k.aa/law_id_classification/:/home/local"
 
     # Use this only on the server
     deploy:

@@ -4,7 +4,5 @@ services:
     container_name: article_pred_container
     build:
       context: .
-    ports:
-      - "8888:8888"
     stdin_open: true
     tty: true

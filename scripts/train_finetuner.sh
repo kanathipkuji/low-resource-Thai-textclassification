@@ -1,0 +1,13 @@
+python scripts/train_finetuner.py \
+    --train_dir './data/processed/tscc/train' \
+    --eval_dir './data/processed/tscc/valid' \
+    --output_dir './results/finetuned-rel-art-pred' \
+    --logging_dir './results/finetuned-rel-art-pred-logs' \
+    --logging_steps 5 \
+    --evaluation_strategy epoch \
+    --save_strategy epoch \
+    --num_train_epochs 50 \
+    --per_device_train_batch_size 64 \
+    --per_device_eval_batch_size 64 \
+    --warmup_steps 500 \
+    --weight_decay 0.01 \

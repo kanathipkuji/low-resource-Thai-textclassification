@@ -4,3 +4,5 @@
 /myproject.egg-info
 /results
 /data
+.neptune/
+__pycache__

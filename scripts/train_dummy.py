@@ -6,9 +6,8 @@ from transformers import (
 )
 from sklearn.dummy import DummyClassifier
 
-from src.datasets import WangChanBERTaFinetunerDataset
+from src.datasets import FinetunerDataset
 from src.metrics import compute_metrics
-
 
 #argparse
 import argparse
@@ -48,13 +47,13 @@ def main():
     
     
     #datasets
-    train_dataset = WangChanBERTaFinetunerDataset(
+    train_dataset = FinetunerDataset(
         tokenizer,
         args.train_dir,
         text_column_name='filtered_fact',
         label_column_name='label',
     )
-    eval_dataset = WangChanBERTaFinetunerDataset(
+    eval_dataset = FinetunerDataset(
         tokenizer,
         args.eval_dir,
         text_column_name='filtered_fact',

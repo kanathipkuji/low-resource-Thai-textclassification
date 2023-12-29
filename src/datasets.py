@@ -5,9 +5,7 @@ import torch
 import glob
 from tqdm.auto import tqdm
 
-model_name = "airesearch/wangchanberta-base-att-spm-uncased"
-
-class WangChanBERTaFinetunerDataset(torch.utils.data.Dataset):
+class FinetunerDataset(torch.utils.data.Dataset):
     def __init__(
             self, 
             tokenizer, 
@@ -16,9 +14,7 @@ class WangChanBERTaFinetunerDataset(torch.utils.data.Dataset):
             label_column_name,
             ext='.csv',
             max_length=416,
-            input_ids=[],
-            attention_masks=[],
-            labels=[]
+           
         ):
         self.tokenizer = tokenizer
         self.max_length = max_length
@@ -27,9 +23,9 @@ class WangChanBERTaFinetunerDataset(torch.utils.data.Dataset):
 
         self.text_column_name = text_column_name
         self.label_column_name = label_column_name
-        self.input_ids = input_ids
-        self.attention_masks = attention_masks
-        self.labels = labels
+        self.input_ids = []
+        self.attention_masks = []
+        self.labels = []
         self.unique_labels = set()
         self._build()
         
@@ -42,38 +38,28 @@ class WangChanBERTaFinetunerDataset(torch.utils.data.Dataset):
         return len(self.labels)
 
     def _build(self):
-        print('fnames', self.fnames)
-        # print(len(self.input_ids))
+        print('Files in the specified directory: ', self.fnames)
+    
+        df_list = []
         for fname in tqdm(self.fnames):
-            df = pd.read_csv(fname)
-            
-            texts = list(df[self.text_column_name].values)
-            labels = list(df[self.label_column_name].values)
-            self.unique_labels.update(labels)
+            df_temp = pd.read_csv(fname)
+            df_list.append(df_temp)
 
-            # tokenize
-            tokenized_inputs = self.tokenizer(
-                texts,
-                # max_length=self.max_length,
-                truncation=True,
-                padding=True,
-            )
+        df = pd.concat(df_list)            
+        texts = list(df[self.text_column_name].values)
+        labels = list(df[self.label_column_name].values)
+        self.unique_labels.update(labels)
 
-            # print(len(tokenized_inputs['input_ids']), len(tokenized_inputs['input_ids'][0]))
-            # add to list
-             # add to list
-            # self.input_ids += tokenized_inputs['input_ids']
-            # self.attention_masks += tokenized_inputs['attention_mask']
-            # self.labels += labels
+        # tokenize
+        tokenized_inputs = self.tokenizer(
+            texts,
+            # max_length=self.max_length,
+            truncation=True,
+            padding=True,
+        )
 
-            self.input_ids = torch.tensor(tokenized_inputs['input_ids'])
-            self.attention_masks = torch.tensor(tokenized_inputs['attention_mask'])
-            self.labels = torch.tensor(labels)
-        # print(len(self.input_ids), len(self.input_ids[0]))
-    
-        # self.input_ids = torch.tensor(self.input_ids)
-        # self.attention_masks = torch.tensor(self.attention_masks)
-        # self.labels = torch.tensor(self.labels)
-    
+        self.input_ids = tokenized_inputs['input_ids']
+        self.attention_masks = tokenized_inputs['attention_mask']
+        self.labels = torch.tensor(labels)
 
 

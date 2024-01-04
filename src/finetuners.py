@@ -5,7 +5,7 @@ import numpy as np
 import pytorch_lightning as pl
 from pytorch_lightning.utilities.types import OptimizerLRScheduler
 from src.datasets import (
-    WangChanBERTaFinetunerDataset
+    FinetunerDataset
 )
 import argparse
 from torch.utils.data import DataLoader
@@ -17,9 +17,9 @@ from transformers import (
     AutoModel,
 )
 
-class WangChanBERTaFinetuner(pl.LightningModule):
+class Finetuner(pl.LightningModule):
     def __init__(self, hparams):
-        super(WangChanBERTaFinetuner, self).__init__()
+        super(Finetuner, self).__init__()
 
         self.hparams = hparams
         self.model = AutoModel.from_pretrained(self.hparams.model_name_or_path,)
@@ -185,7 +185,7 @@ class WangChanBERTaFinetuner(pl.LightningModule):
         self.lr_scheduler.step()
 
     def train_dataloader(self):
-        train_dataset = WangChanBERTaFinetunerDataset(
+        train_dataset = FinetunerDataset(
             tokenizer=self.tokenizer,
             data_dir=self.hparams.train_dir,
             max_length=self.hparams.max_length,
@@ -221,7 +221,7 @@ class WangChanBERTaFinetuner(pl.LightningModule):
         return dataloader
 
     def val_dataloader(self):
-        val_dataset = WangChanBERTaFinetunerDataset(
+        val_dataset = FinetunerDataset(
             tokenizer=self.tokenizer,
             data_dir=self.hparams.valid_dir,
             max_length=self.hparams.max_length,
@@ -234,7 +234,7 @@ class WangChanBERTaFinetuner(pl.LightningModule):
         )
 
     def test_dataloader(self):
-        test_dataset = WangChanBERTaFinetunerDataset(
+        test_dataset = FinetunerDataset(
             tokenizer=self.tokenizer,
             data_dir=self.hparams.test_dir,
             max_length=self.hparams.max_length,

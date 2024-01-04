@@ -3,7 +3,7 @@ from neptune.types import File
 import numpy as np
 import pandas as pd
 
-from .plot_utils import plot_confusion_matrix
+from src.plot_utils import plot_confusion_matrix
 
 class CustomNeptuneCallback(TrainerCallback):
     def __init__(self, run, labels):

@@ -22,11 +22,16 @@ def main():
     #required
     # parser.add_argument("--model_name_or_path", type=str,)
     parser.add_argument("--train_dir", type=str,)
-    parser.add_argument("--eval_dir", type=str,)
+    parser.add_argument("--valid_dir", type=str,)
+
+    #Dataset
+    parser.add_argument("--text_column_name", type=str,)
+    parser.add_argument("--label_column_name", type=str,)
+
 
     #checkpoint
     parser.add_argument("--output_dir", type=str, default="./results")
-    parser.add_argument('--overwrite_output_dir', default=True, type=lambda x: (str(x).lower() in ['true','True','T']))
+    parser.add_argument('--overwrite_output_dir', default=True, type=lambda x: (str(x).lower() in ['true', 't', 1, 'yes', 'y']))
 
     #train hyperparameters
     parser.add_argument("--strategy", type=str, default='most_frequent')
@@ -50,14 +55,14 @@ def main():
     train_dataset = FinetunerDataset(
         tokenizer,
         args.train_dir,
-        text_column_name='filtered_fact',
-        label_column_name='label',
+        text_column_name=args.text_column_name,
+        label_column_name=args.label_column_name,
     )
     eval_dataset = FinetunerDataset(
         tokenizer,
-        args.eval_dir,
-        text_column_name='filtered_fact',
-        label_column_name='label',
+        args.valid_dir,
+        text_column_name=args.text_column_name,
+        label_column_name=args.label_column_name,
     )
 
     dummy.fit(train_dataset.input_ids, train_dataset.labels)

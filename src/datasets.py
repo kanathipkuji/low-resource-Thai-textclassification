@@ -63,3 +63,46 @@ class FinetunerDataset(torch.utils.data.Dataset):
         self.labels = torch.tensor(labels)
 
 
+class CompressorKNNDataset(torch.utils.data.Dataset):
+    def __init__(
+            self, 
+            data_dir,
+            text_column_name,
+            label_column_name,
+            ext='.csv',
+            max_length=416,
+        ):
+        self.max_length = max_length
+        self.fnames = glob.glob(f"{data_dir}/*{ext}")
+        print(self.fnames)
+
+        self.text_column_name = text_column_name
+        self.label_column_name = label_column_name
+        self.texts = []
+        self.labels = []
+        self.unique_labels = set()
+        self._build()
+        
+
+    def __getitem__(self, idx):
+        item = {'texts': self.texts[idx], 'labels': self.labels[idx]}
+        return item
+
+    def __len__(self):
+        return len(self.labels)
+
+    def _build(self):
+        print('Files in the specified directory: ', self.fnames)
+    
+        df_list = []
+        for fname in tqdm(self.fnames):
+            df_temp = pd.read_csv(fname)
+            df_list.append(df_temp)
+        df = pd.concat(df_list)
+
+        texts = list(df[self.text_column_name].values)
+        labels = list(df[self.label_column_name].values)
+        self.unique_labels.update(labels)
+        
+        self.texts = texts
+        self.labels = labels

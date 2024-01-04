@@ -7,10 +7,9 @@ from seqeval.metrics import (accuracy_score as seqeval_accuracy_score,
                              precision_score as seqeval_precision_score, 
                              recall_score as seqeval_recall_score)
 
-def single_label_metrics(predictions, y_labels, labels=None):
-    y_pred = predictions.argmax(-1)
-    # print('y_labels: ', y_labels)
-    # print('y_pred: ', y_pred)
+def single_label_metrics(y_pred, y_labels, labels=None):
+    print('y_labels: ', y_labels)
+    print('y_pred: ', y_pred)
     f1_micro_average = f1_score(y_true=y_labels, y_pred=y_pred, average='micro')
     accuracy = accuracy_score(y_true=y_labels, y_pred=y_pred, normalize=True)
     conf = confusion_matrix(y_true=y_labels, y_pred=y_pred, labels=labels).tolist()
@@ -24,21 +23,27 @@ def single_label_metrics(predictions, y_labels, labels=None):
     return metrics
 
 def compute_metrics(p):
-    # print(p.label_ids)
     preds = p.predictions[0] if isinstance(p.predictions, 
             tuple) else p.predictions
+    y_pred = preds.argmax(-1)
     result = single_label_metrics(
-        predictions=preds, 
+        y_pred=y_pred, 
         y_labels=p.label_ids)
+    return result
+
+def compute_metrics(preds, labels):
+    result = single_label_metrics(
+        y_pred=preds,
+        y_labels=labels)
     return result
 
 def compute_metrics_with_labels(labels):
     def compute_metrics(p):
-        # print(p.label_ids)
         preds = p.predictions[0] if isinstance(p.predictions, 
                 tuple) else p.predictions
+        y_pred = preds.argmax(-1)
         result = single_label_metrics(
-            predictions=preds, 
+            y_pred=y_pred, 
             y_labels=p.label_ids,
             labels=list(labels))
         return result

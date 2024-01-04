@@ -10,17 +10,17 @@ from transformers import (
 from transformers.data.processors.utils import InputFeatures
 from transformers.integrations import NeptuneCallback
 
-from src.datasets import WangChanBERTaFinetunerDataset
+from src.datasets import FinetunerDataset
 from src.metrics import compute_metrics_with_labels
 from src.callbacks import CustomNeptuneCallback
-# from src.finetuners import WangChanBERTaFinetuner
+# from src.finetuners import Finetuner
 
 import neptune
 
 #argparse
 import argparse
 # python train_sequence_classification_huggingface.py --model_name_or_path xlm-roberta-base \
-# --num_labels 5 --train_dir data/train_th --eval_dir data/valid_th --num_train_epochs 3
+# --num_labels 5 --train_dir data/train_th --valid_dir data/valid_th --num_train_epochs 3
 
 def main():
     #argparser
@@ -31,14 +31,20 @@ def main():
     
     #required
     # parser.add_argument("--model_name_or_path", type=str,)
-    parser.add_argument("--num_labels", type=int,)
+    # parser.add_argument("--num_labels", type=int,)
     parser.add_argument("--train_dir", type=str,)
-    parser.add_argument("--eval_dir", type=str,)
+    parser.add_argument("--valid_dir", type=str,)
+    parser.add_argument("--test_dir", type=str,)
     parser.add_argument("--num_train_epochs", type=int,)
+
+    #Dataset
+    parser.add_argument("--text_column_name", type=str,)
+    parser.add_argument("--label_column_name", type=str,)
+
 
     #checkpoint
     parser.add_argument("--output_dir", type=str, default="./results")
-    parser.add_argument('--overwrite_output_dir', default=True, type=lambda x: (str(x).lower() in ['true','True','T']))
+    parser.add_argument('--overwrite_output_dir', default=True, type=lambda x: (str(x).lower() in ['true', 't', 1, 'yes', 'y']))
     parser.add_argument("--save_total_limit", type=int, default=1)
     parser.add_argument("--save_steps", type=int, default=500)
     
@@ -63,11 +69,15 @@ def main():
     parser.add_argument("--weight_decay", type=float, default=0.01)
     parser.add_argument("--adam_epsilon", type=float, default=1e-8)
     parser.add_argument("--max_grad_norm", type=float, default=1.0)
-    parser.add_argument('--dataloader_drop_last', default=False, type=lambda x: (str(x).lower() in ['true','True','T']))
+    parser.add_argument('--dataloader_drop_last', default=False, type=lambda x: (str(x).lower() in ['true', 't', 1, 'yes', 'y']))
+    
+    #Neptune AI
+    parser.add_argument('--neptune_project', type=str)
+    parser.add_argument('--neptune_api_token', type=str)
     
     #others
     parser.add_argument("--seed", type=int, default=1412)
-    parser.add_argument('--fp16', default=False, type=lambda x: (str(x).lower() in ['true','True','T']))
+    parser.add_argument('--fp16', default=False, type=lambda x: (str(x).lower() in ['true', 't', 1, 'yes', 'y']))
     parser.add_argument("--fp16_opt_level", type=str, default="O1")
     
     args = parser.parse_args()
@@ -82,17 +92,22 @@ def main():
     )
     
     #datasets
-    train_dataset = WangChanBERTaFinetunerDataset(
+    train_dataset = FinetunerDataset(
         tokenizer,
         args.train_dir,
-        text_column_name='filtered_fact',
-        label_column_name='label',
+        text_column_name=args.text_column_name,
+        label_column_name=args.label_column_name,
     )
-    eval_dataset = WangChanBERTaFinetunerDataset(
+    eval_dataset = FinetunerDataset(
         tokenizer,
-        args.eval_dir,
-        text_column_name='filtered_fact',
-        label_column_name='label',
+        args.valid_dir,
+        text_column_name=args.text_column_name,
+        label_column_name=args.label_column_name,
+    )
+    test_dataset = FinetunerDataset(
+        args.test_dir,
+        text_column_name=args.text_column_name,
+        label_column_name=args.label_column_name,
     )
     
     unique_labels = train_dataset.unique_labels
@@ -137,8 +152,8 @@ def main():
     )
     print(train_dataset.input_ids.shape)
     
-    neptune_project = 'kanathip137/finetuned-rel-art-pred'
-    neptune_api_token = 'eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiIxZDIyNDdmMi05YTY3LTRmYTktODk3OC05ZmMxZmU1NmUxMjAifQ=='
+    neptune_project = args.neptune_project
+    neptune_api_token = args.neptune_api_token
     run = neptune.init_run(
         project=neptune_project,
         api_token=neptune_api_token
@@ -164,7 +179,7 @@ def main():
     
     #evaluate
     trainer.evaluate()
-
+    run.stop()
 
     
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-python scripts/train_gzip.py \
+python scripts/evaluate_gzip.py \
     --train_dir './data/processed/tscc/train' \
     --valid_dir './data/processed/tscc/valid' \
     --test_dir './data/processed/tscc/test' \

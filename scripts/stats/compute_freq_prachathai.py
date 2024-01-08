@@ -7,13 +7,14 @@ from tqdm.auto import tqdm
 import csv
 from collections import Counter
 
-from scipy.stats import chi2_contingency
+import sys
 
-_TOKENIZER = word_tokenize
-_TOKENIZER_NAME = 'newmm'
-_CORPUS_ROOT_PATHs = '../../data/raw/cleaned_data-used-in-wangchanberta/'
+csv.field_size_limit(sys.maxsize)
 
-_COLUMN_ID_FOR_FACT_DESCRIPTION = 6
+# _TOKENIZER = word_tokenize
+# _TOKENIZER_NAME = 'newmm'
+
+_COLUMN_ID_FOR_FACT_DESCRIPTION = 3
 
 def process_text(text):
     text.strip()
@@ -26,7 +27,7 @@ def process_corpora(fname):
     with open(fname, 'r', newline='') as f:
         reader = csv.reader(f, delimiter=',')
         next(reader)
-        for row in reader:
+        for row in tqdm(reader):
             freq = process_text(row[_COLUMN_ID_FOR_FACT_DESCRIPTION])
             freq_combined += freq
     return freq_combined
@@ -34,8 +35,8 @@ def process_corpora(fname):
 def main():
     # argparser
     parser = argparse.ArgumentParser(
-        prog="compute_freq_TSCC.py",
-        description="compute word frequencies of corpora used in TSCC",
+        prog="compute_freq_wongnai.py",
+        description="compute word frequencies in text field of prachathai 67k",
     )
 
     # required
@@ -45,8 +46,7 @@ def main():
     parser.add_argument(
         "--output_dir", type=str,
     )
-
-    
+ 
     args = parser.parse_args()
     fnames = [f'{args.input_dir}/{str(x)}' for x in glob.glob(f'*.csv', root_dir=args.input_dir)]
     print(fnames)
@@ -59,7 +59,7 @@ def main():
         freqs += result
 
     # Save frequencies to output file
-    with open(f'{args.output_dir}/frequency_stats_TSCC.csv', 'w') as f:
+    with open(f'{args.output_dir}/frequency_stats_prachathai.csv', 'w') as f:
         writer = csv.writer(f)
         writer.writerow(['Word', 'Frequency'])
         for word, frequency in freqs.most_common():

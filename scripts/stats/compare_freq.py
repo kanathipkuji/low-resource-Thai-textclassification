@@ -10,13 +10,10 @@ import pandas as pd
 import json
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.stats import chi2_contingency
+from scipy.stats import chi2_contingency, spearmanr
 
 _TOKENIZER = word_tokenize
 _TOKENIZER_NAME = 'newmm'
-_CORPUS_ROOT_PATHs = '../../data/raw/cleaned_data-used-in-wangchanberta/'
-_FREQ_DIR_1 = '../../data/frequency_stats.csv'
-_FREQ_DIR_2 = '../../data/frequency_stats_TSCC.csv'
 
 def test_ll():
     # obs = np.array([[10, 10], [10, 20], [40, 50]])
@@ -41,7 +38,7 @@ def test_ll():
     print('res, expected frequency: ', res.expected_freq)
     print('res, dof: ', res.dof)
 
-def compute_log_likelihood_and_chi2(dict1, dict2):
+def compute_stats(dict1, dict2):
     '''
     First compute expected value E_i of words appeared in both dict1 and dict2. 
     For each such word, calculate:
@@ -50,6 +47,8 @@ def compute_log_likelihood_and_chi2(dict1, dict2):
     and N_i is the total number of appearance of all words on that corpus.
     then, compute LL as follows:
     LL = 2 * sum(O_i * ln(O_i / E_i))
+
+    Then, compute Spearman's rank correlation coefficient.
     '''
 
     dict1_set = set(dict1)
@@ -64,7 +63,7 @@ def compute_log_likelihood_and_chi2(dict1, dict2):
     print('# words exclusive on dict1:\n', len(dif1))
     print('# words exclusive on dict2:\n', len(dif2))
 
-    res = {}
+    LL_dict = {}
     chi2 = 0
 
     contingency_table = np.array([[dict1[word], dict2[word]] for word in inter])
@@ -72,13 +71,10 @@ def compute_log_likelihood_and_chi2(dict1, dict2):
     N1 = Ns[0]
     N2 = Ns[1]
     N  = Ns.sum()
-    # print(contingency_table.shape)
-    # contingency_table = np.r_[contingency_table, np.array([[dict1[word], 0] for word in dif1])]
-    # print(contingency_table.shape)
-    # contingency_table = np.r_[contingency_table, np.array([[0, dict2[word]] for word in dif2])]
-    # print(contingency_table.shape)
-    chi2 = chi2_contingency(contingency_table)
+
+    chi2 = chi2_contingency(contingency_table, correction=False)
     log_likelihood = chi2_contingency(contingency_table, correction=False, lambda_='log-likelihood')
+    cressie_read = chi2_contingency(contingency_table, correction=False, lambda_='cressie-read')
     print('chi2_dof: ', chi2.dof)
     
     for word in inter:
@@ -88,23 +84,35 @@ def compute_log_likelihood_and_chi2(dict1, dict2):
         E1 = N1 * O / N
         E2 = N2 * O / N
         LL = 2 * ((O1 * np.log(O1/E1)) + (O2 * np.log(O2/E2)))
-        res[word] = LL
+        LL_dict[word] = LL
     
-    res = dict(sorted(res.items(), key=lambda x: x[1], reverse=True))
+    LL_dict = dict(sorted(LL_dict.items(), key=lambda x: x[1], reverse=True))
     print('Descending order:')
-    for i, (word, LL) in enumerate(res.items()):
+    for i, (word, LL) in enumerate(LL_dict.items()):
         if i >= 15: break
         print(word, LL, dict1[word], dict2[word])
 
     print('Ascending order:')
-    res2 = dict(sorted(res.items(), key=lambda x: x[1], reverse=False))
-    for i, (word, LL) in enumerate(res2.items()):
+    LL_dict2 = dict(sorted(LL_dict.items(), key=lambda x: x[1], reverse=False))
+    for i, (word, LL) in enumerate(LL_dict2.items()):
         if i >= 15: break
         print(word, LL, dict1[word], dict2[word])
 
-    return (res, chi2, log_likelihood)
+    scc = spearmanr(contingency_table[:,0], contingency_table[:, 1], alternative='greater')
 
-def compute_stats(fname1, fname2):
+    return (LL_dict, chi2, log_likelihood, cressie_read, scc)
+
+def get_title_name_for_corpora(corpora_name):
+    if str.lower(corpora_name) in ['tscc']:
+        return 'TSCC'
+    elif str.lower(corpora_name) in ['wangchan', 'wangchanberta']:
+        return 'Corpora Used by WangChanBERTa'
+    elif str.lower(corpora_name) in ['wongnai']:
+        return 'Wongnai'
+    else:
+        return '<Unknown>'
+
+def compare_freq(fname1, fname2, corpora_name1, corpora_name2):
     df1 = pd.read_csv(fname1)
     df2 = pd.read_csv(fname2)
 
@@ -124,28 +132,34 @@ def compute_stats(fname1, fname2):
 
     fig, (ax1, ax2) = plt.subplots(1, 2, dpi=120, figsize=(18, 10))
     ax1.hist(dict1_filtered.values(), bins=300, log=True)
-    ax1.set_title('Histogram of Frequency of Words in Corpora Used by WangChanBERTa')
+    ax1.set_title(f'Histogram of Frequency of Words in {get_title_name_for_corpora(corpora_name1)}')
     ax2.hist(dict2_filtered.values(), bins=300, log=True)
-    ax2.set_title('Histogram of Frequency of Words in TSCC')
+    ax2.set_title(f'Histogram of Frequency of Words in {get_title_name_for_corpora(corpora_name2)}')
 
 
-    res = compute_log_likelihood_and_chi2(dict1_filtered, dict2_filtered)
+    res = compute_stats(dict1_filtered, dict2_filtered)
 
     return res
 
 def main():
     # argparser
     parser = argparse.ArgumentParser(
-        prog="compute_stats.py",
-        description="compute stats of corpora used in WangChanBERTa and TSCC dataset",
+        prog="compare_freq.py",
+        description="compare word frequencies between 2 corpora in terms of chi-squared",
     )
 
     # required
     parser.add_argument(
-        "--freq1_dir", type=str, default=_FREQ_DIR_1
+        "--freq1_path", type=str,
     )
     parser.add_argument(
-        "--freq2_dir", type=str, default=_FREQ_DIR_2
+        "--freq2_path", type=str,
+    )
+    parser.add_argument(
+        "--freq1_name", type=str,
+    )
+    parser.add_argument(
+        "--freq2_name", type=str,
     )
     parser.add_argument(
         "--output_dir", type=str
@@ -153,24 +167,35 @@ def main():
 
     args = parser.parse_args()
     
-    (LL, chi2, ll) = compute_stats(args.freq1_dir, args.freq2_dir)
+    (LL, chi2, ll, cr, scc) = compare_freq(args.freq1_path, args.freq2_path, args.freq1_name, args.freq2_name)
 
-    plt.savefig(f'{args.output_dir}/plots.png')
-    # plt.show()
-    # plt.close()
+    plt.savefig(f'{args.output_dir}/plots/hist_{args.freq1_name}_{args.freq2_name}.png')
 
-    # test_ll()
+    print(f'chi2: {chi2.statistic}\n')
+    print(f'chi2 (p value): {chi2.pvalue}\n')
+    print(f'Log likelihood: {ll.statistic}\n')
+    print(f'Log likelihood (p-value): {ll.pvalue}\n')
+    print(f'Log likelihood implemented by myself: {np.sum(list(LL.values()))}\n')
+    print(f'Cressie-Read power divergence: {cr.statistic}\n')
+    print(f'Cressie-Read power divergence (p value): {cr.pvalue}\n')
+    print(f'Spearman\'s rank correlation coefficient: {scc.statistic}\n')
+    print(f'Spearman\'s rank correlation coefficient (p-value): {scc.pvalue}\n')
 
-
-    print('chi2: ', chi2.statistic)
-    print('chi2 (p value): ', chi2.pvalue)
-    print('Log likelihood: ', ll.statistic)
-    print('Log likelihood (p value): ', ll.pvalue)
-    print('Log likelihood self created: ', np.sum(list(LL.values())))
-
-    with open(f'{args.output_dir}/final_stats23.txt', 'w') as f:
-        print('writing results...')
+    with open(f'{args.output_dir}/log_likelihood_{args.freq1_name}_{args.freq2_name}.txt', 'w') as f:
+        print('writing log likelihood...')
         f.write(str(LL))
+        print('done writing')
+
+    with open(f'{args.output_dir}/report_{args.freq1_name}_{args.freq2_name}.txt', 'w') as f:
+        print('writing report...')
+        f.write(f'chi2: {chi2.statistic:.6f}\n')
+        f.write(f'chi2 (p value): {chi2.pvalue:.6f}\n')
+        f.write(f'Log likelihood: {ll.statistic:.6f}\n')
+        f.write(f'Log likelihood (p-value): {ll.pvalue:.6f}\n')
+        f.write(f'Cressie-Read power divergence: {cr.statistic}\n')
+        f.write(f'Cressie-Read power divergence (p value): {cr.pvalue}\n')
+        f.write(f'Spearman\'s rank correlation coefficient: {scc.statistic:.6f}\n')
+        f.write(f'Spearman\'s rank correlation coefficient (p-value): {scc.pvalue:.6f}\n')
         print('done writing')
 
 if __name__ == "__main__":

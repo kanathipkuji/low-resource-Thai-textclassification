@@ -9,19 +9,22 @@ if __name__ == '__main__':
     parser.add_argument(
         '--input_path', 
         type=str, 
-        default='./data/processed/tscc/tscc_cleaned.csv'
     )
     parser.add_argument(
         '--output_dir', 
         type=str, 
-        default='./data/processed/tscc'
+    )
+    parser.add_argument(
+        '--csv_sep', 
+        type=str,
+        default=',',
     )
     parser.add_argument('--train_ratio', type=float, default=0.80)
     parser.add_argument('--valid_ratio', type=float, default=0.10)
     parser.add_argument('--test_ratio', type=float, default=0.10)
     args = parser.parse_args()
 
-    df = pd.read_csv(args.input_path)
+    df = pd.read_csv(args.input_path, sep=args.csv_sep)
     labels = df.label
     label_counts = labels.astype(str).value_counts()
     one_freq = label_counts[label_counts==1].keys()

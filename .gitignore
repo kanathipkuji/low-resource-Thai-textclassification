@@ -5,4 +5,5 @@
 /results
 /data
 .neptune/
+/reports
 __pycache__

@@ -104,12 +104,12 @@ if __name__ == '__main__':
     parser.add_argument(
         '--input_path', 
         type=str, 
-        default='./data/tscc/tscc_v0.1-judgement.csv'
+        default='./data/raw/tscc/tscc_v0.1-judgement.csv'
     )
     parser.add_argument(
-        '--output_path', 
+        '--output_dir', 
         type=str, 
-        default='./data/tscc/processed'
+        default='./data/processed/tscc'
     )
     args = parser.parse_args()
     df = pd.read_csv(args.input_path)
@@ -142,4 +142,4 @@ if __name__ == '__main__':
 
     print('# Article IDs (after selecting most frequent label per case): ', len(set(df.label)))
 
-    df.to_csv(f'{args.output_path}/tscc_cleaned.csv', index=False, encoding='utf-8')
+    df.to_csv(f'{args.output_dir}/tscc_cleaned.csv', index=False, encoding='utf-8')

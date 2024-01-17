@@ -1,6 +1,7 @@
 import argparse
 import pandas as pd
 import re
+import os
 
 def get_relevant_article_ids(df):
     lawids_df = df['lawids']
@@ -8,11 +9,11 @@ def get_relevant_article_ids(df):
     for ids in lawids_df:
         lawids.extend(ids.split(','))
     lawids_set = set(lawids)
-    print('# Article IDs (before filtering out): ', len(lawids_set))
+    print('# Article IDs (before filtered out): ', len(lawids_set))
 
     ''' remove any articles with id <= 106 '''
     lawids = list(filter(lambda x: int(x.split('-')[1][:3]) > 106, lawids_set))
-    print('# Article IDs (after filtering out): ', len(lawids))
+    print('# Article IDs (after filtered out): ', len(lawids))
 
 
     # # Select only OFFENCE AGAINST LIFE AND BODY (288 - 300)
@@ -29,16 +30,11 @@ def get_relevant_article_ids(df):
     # lawids = list(filter(lambda x: 326 <= int(x.split('-')[1][:3]) <= 333, lawids))
     # print('# Article IDs (after filtering out (<326 or > 333)): ', len(lawids))
 
-    '''remove articles that appear less than 5 times among all datapoints'''
-    drop_article_list = ['CC-390-00','CC-289(7)-00', 'CC-339-01', 'CC-342-00', 'CC-338-00', 'CC-335-01', 
-                        'CC-335bis-00', 'CC-289(3)-00', 'CC-354-00', 'CC-298-00', 'CC-335bis-01']
-    lawids = [x for x in lawids if x not in drop_article_list]
+   
     print('# Article IDs (after dropping non frequent articles): ', len(lawids))
     return lawids
 
-def drop_columns(df):
-    df = df[['label', 'filtered_fact']]
-    return df
+
 
 def attach_filtered_fact(df):
     pattern = r'<discr>.*?</discr>'
@@ -84,7 +80,7 @@ def get_most_frequent_label(case_lawids, label2freqord):
     return label2id[case_lawids[0]]
 
 
-def attach_label(df, lawids):
+def attach_most_frequent_lawid(df, lawids):
     '''
     Select one most frequent label for each datapoint
     '''
@@ -98,6 +94,19 @@ def select_unique_dekaid(df):
     max_issue_indices = df.groupby('dekaid')['issueno'].idxmax()
     return df.loc[max_issue_indices]
 
+def remove_low_freq_label_entry(df):
+    '''remove articles that appear less than K (=5) times among all datapoints'''
+    # drop_article_list = ['CC-390-00','CC-289(7)-00', 'CC-339-01', 'CC-342-00', 'CC-338-00', 'CC-335-01', 
+    #                     'CC-335bis-00', 'CC-289(3)-00', 'CC-354-00', 'CC-298-00', 'CC-335bis-01']
+    # lawids = [x for x in lawids if x not in drop_article_list]
+    label_counts = df['label'].astype(str).value_counts()
+    labels_to_remove = label_counts[label_counts < 5].keys()
+    labels_to_remove_idxs = sorted(list(df[df['label'].astype(str).isin(labels_to_remove)].index), reverse=True)
+    df = df.drop(labels_to_remove_idxs)
+    print(f'Removing labels with frequency less than K: {len(labels_to_remove)} such labels')
+    
+    return df
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
@@ -109,22 +118,43 @@ if __name__ == '__main__':
     parser.add_argument(
         '--output_dir', 
         type=str, 
-        default='./data/processed/tscc'
+        default='./data/processed/tscc-orig'
     )
+    parser.add_argument(
+        '--dataset_name', 
+        type=str, 
+        default='tscc-orig'
+    )
+    parser.add_argument(
+        '--label', 
+        type=str, 
+        choices=['isguilty', 'lawids'],
+        default='isguilty'
+    )
+    
     args = parser.parse_args()
     df = pd.read_csv(args.input_path)
-    lawids = get_relevant_article_ids(df)
 
-    id2label = {idx:label for idx, label in enumerate(lawids)}
-    label2id = {str(label):idx for idx, label in enumerate(lawids)}
-
-    print(f'before: {len(df)}')
+    print(f'# datapoints before selecting unique dekaid: {len(df)}')
     df = select_unique_dekaid(df)
-    print(f'after: {len(df)}')
+    print(f'# datapoints after selecting unique dekaid: {len(df)}')
     df = attach_filtered_fact(df)
-    df = attach_multihot_encoding(df, lawids)
-    df = attach_label(df, lawids)
-    df = drop_columns(df)
+
+    if args.label == 'lawids':
+        lawids = get_relevant_article_ids(df)
+        id2label = {idx:label for idx, label in enumerate(lawids)}
+        label2id = {str(label):idx for idx, label in enumerate(lawids)}
+        df = attach_multihot_encoding(df, lawids)
+        df = attach_most_frequent_lawid(df, lawids)
+        df = remove_low_freq_label_entry(df)
+    else:
+        labels = set(df[args.label])
+        id2label = {idx:label for idx, label in enumerate(labels)}
+        label2id = {str(label):idx for idx, label in enumerate(labels)}
+        df['label'] = df[args.label]
+
+    # Drop all other columns
+    df = df[['label', 'filtered_fact']]
     
     '''
     update label ids
@@ -140,6 +170,9 @@ if __name__ == '__main__':
     label2id = label2id_new
     id2label = {y: x for x, y in label2id.items()}
 
-    print('# Article IDs (after selecting most frequent label per case): ', len(set(df.label)))
+    print('# classes: ', len(set(df.label)))
 
-    df.to_csv(f'{args.output_dir}/tscc_cleaned.csv', index=False, encoding='utf-8')
+    if os.path.exists(f'{args.output_dir}/') == False:
+            os.makedirs(f'{args.output_dir}/', exist_ok=True)
+
+    df.to_csv(f'{args.output_dir}/{args.dataset_name}_cleaned.csv', index=False, encoding='utf-8')

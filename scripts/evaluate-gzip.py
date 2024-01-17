@@ -26,10 +26,9 @@ import optuna
 import neptune.integrations.optuna as optuna_utils
 
 def main():
-    #argparser
     parser = argparse.ArgumentParser(
-        prog="train_gzip",
-        description="train sequence classification with gzip-based kNN",
+        prog="evaluate-gzip.py",
+        description="evaluate sequence classification with gzip-based kNN",
     )
     
     #required
@@ -39,7 +38,9 @@ def main():
     parser.add_argument("--valid_dir", type=str,)
     parser.add_argument("--test_dir", type=str,)
 
+
     #Dataset
+    parser.add_argument("--csv_sep", type=str, default=',')
     parser.add_argument("--text_column_name", type=str,)
     parser.add_argument("--label_column_name", type=str,)
 
@@ -53,8 +54,8 @@ def main():
     parser.add_argument("--optuna_metric_for_best", type=str, default='f1')
 
     #hyperparameters
-    parser.add_argument("--top_k", type=int, default=5)
-    parser.add_argument("--sampling_percentage", type=float, default=0.1)
+    parser.add_argument("--top_k", type=int, default=1)
+    parser.add_argument("--sampling_percentage", type=float, default=1.0)
 
     #Neptune AI
     parser.add_argument('--neptune_project', type=str)
@@ -70,22 +71,26 @@ def main():
         api_token=neptune_api_token
     )
     neptune_callback = optuna_utils.NeptuneCallback(run)
+    run['bash'].upload('./scripts/evaluate-gzip.sh')
 
     #datasets
     train_dataset = CompressorKNNDataset(
         args.train_dir,
         text_column_name=args.text_column_name,
         label_column_name=args.label_column_name,
+        sep=args.csv_sep,
     )
     eval_dataset = CompressorKNNDataset(
         args.valid_dir,
         text_column_name=args.text_column_name,
         label_column_name=args.label_column_name,
+        sep=args.csv_sep,
     )
     test_dataset = CompressorKNNDataset(
         args.test_dir,
         text_column_name=args.text_column_name,
         label_column_name=args.label_column_name,
+        sep=args.csv_sep,
     )
 
     unique_labels = train_dataset.unique_labels
@@ -107,15 +112,14 @@ def main():
     if args.optuna:
 
         def objective(trial):
-            # Define hyperparameters to be optimized
-            top_k = trial.suggest_int('top_k', 1, 50)
-            sampling_percentage = trial.suggest_float('sampling_percentage', 0.1, 1.0)
+            
+            top_k = trial.suggest_int('top_k', 1, 5)
+            # sampling_percentage = trial.suggest_float('sampling_percentage', 0.8, 1.0)
 
-            # Update the hyperparameters in your existing code
             distances, pred, similar_samples = gzip_model.predict(
                 eval_dataset.texts,
                 top_k=top_k,
-                sampling_percentage=sampling_percentage
+                sampling_percentage=args.sampling_percentage
             )
 
             metrics = compute_metrics(pred, eval_dataset.labels)
@@ -124,14 +128,15 @@ def main():
             return score
         
         study = optuna.create_study(direction='maximize')
-        study.optimize(objective, n_trials=50, callbacks=[neptune_callback])  # You can adjust the number of trials
+        study.optimize(objective, n_trials=5, callbacks=[neptune_callback])
 
         # Get the best hyperparameters
         best_params = study.best_trial.params
         top_k = best_params['top_k']
-        sampling_percentage = best_params['sampling_percentage']
+        # sampling_percentage = best_params['sampling_percentage']
 
-        print(f'The tuned hyperparameter is top_k: {top_k}, and sampling_percentage: {sampling_percentage}')
+        print(f'The tuned hyperparameter is top_k: {top_k}')
+        # print(f'The tuned hyperparameter is top_k: {top_k}, and sampling_percentage: {sampling_percentage}')
 
 
     print('top k: ', top_k, 'sampling percentage: ', sampling_percentage)

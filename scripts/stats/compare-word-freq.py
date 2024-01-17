@@ -11,6 +11,7 @@ import json
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import chi2_contingency, spearmanr
+import os
 
 _TOKENIZER = word_tokenize
 _TOKENIZER_NAME = 'newmm'
@@ -144,7 +145,7 @@ def compare_freq(fname1, fname2, corpora_name1, corpora_name2):
 def main():
     # argparser
     parser = argparse.ArgumentParser(
-        prog="compare_freq.py",
+        prog="compare-word-freq.py",
         description="compare word frequencies between 2 corpora in terms of chi-squared",
     )
 
@@ -169,7 +170,10 @@ def main():
     
     (LL, chi2, ll, cr, scc) = compare_freq(args.freq1_path, args.freq2_path, args.freq1_name, args.freq2_name)
 
-    plt.savefig(f'{args.output_dir}/plots/hist_{args.freq1_name}_{args.freq2_name}.png')
+    if os.path.exists(f'{args.output_dir}/') == False:
+            os.makedirs(f'{args.output_dir}/', exist_ok=True)
+
+    plt.savefig(f'{args.output_dir}/plots/hist-{args.freq1_name}-{args.freq2_name}.png')
 
     print(f'chi2: {chi2.statistic}\n')
     print(f'chi2 (p value): {chi2.pvalue}\n')
@@ -181,12 +185,12 @@ def main():
     print(f'Spearman\'s rank correlation coefficient: {scc.statistic}\n')
     print(f'Spearman\'s rank correlation coefficient (p-value): {scc.pvalue}\n')
 
-    with open(f'{args.output_dir}/log_likelihood_{args.freq1_name}_{args.freq2_name}.txt', 'w') as f:
+    with open(f'{args.output_dir}/log-likelihood-{args.freq1_name}-{args.freq2_name}.txt', 'w') as f:
         print('writing log likelihood...')
         f.write(str(LL))
         print('done writing')
 
-    with open(f'{args.output_dir}/report_{args.freq1_name}_{args.freq2_name}.txt', 'w') as f:
+    with open(f'{args.output_dir}/report-{args.freq1_name}-{args.freq2_name}.txt', 'w') as f:
         print('writing report...')
         f.write(f'chi2: {chi2.statistic:.6f}\n')
         f.write(f'chi2 (p value): {chi2.pvalue:.6f}\n')

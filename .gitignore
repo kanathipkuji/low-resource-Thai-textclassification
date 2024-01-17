@@ -6,4 +6,5 @@
 /data
 .neptune/
 /reports
+/deprecated-code
 __pycache__

@@ -10,13 +10,13 @@ from seqeval.metrics import (accuracy_score as seqeval_accuracy_score,
 def single_label_metrics(y_pred, y_labels, labels=None):
     print('y_labels: ', y_labels)
     print('y_pred: ', y_pred)
-    f1_micro_average = f1_score(y_true=y_labels, y_pred=y_pred, average='micro')
+    f1_macro_average = f1_score(y_true=y_labels, y_pred=y_pred, average='macro')
     accuracy = accuracy_score(y_true=y_labels, y_pred=y_pred, normalize=True)
     conf = confusion_matrix(y_true=y_labels, y_pred=y_pred, labels=labels).tolist()
     report = classification_report(y_true=y_labels, y_pred=y_pred, output_dict=True)
 
 
-    metrics = {'f1': f1_micro_average,
+    metrics = {'f1': f1_macro_average,
                'accuracy': accuracy,
                'confusion_matrix': conf,
                'report': report}

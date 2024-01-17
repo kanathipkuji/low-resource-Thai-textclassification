@@ -4,6 +4,7 @@ import pandas as pd
 import torch
 import glob
 from tqdm.auto import tqdm
+from thai2transformers.preprocess import process_transformers
 
 class FinetunerDataset(torch.utils.data.Dataset):
     def __init__(
@@ -14,7 +15,8 @@ class FinetunerDataset(torch.utils.data.Dataset):
             label_column_name,
             ext='.csv',
             max_length=416,
-           
+            sep=',',
+            preprocess=True,
         ):
         self.tokenizer = tokenizer
         self.max_length = max_length
@@ -26,6 +28,8 @@ class FinetunerDataset(torch.utils.data.Dataset):
         self.input_ids = []
         self.attention_masks = []
         self.labels = []
+        self.preprocess = preprocess
+        self.sep = sep
         self.unique_labels = set()
         self._build()
         
@@ -42,7 +46,7 @@ class FinetunerDataset(torch.utils.data.Dataset):
     
         df_list = []
         for fname in tqdm(self.fnames):
-            df_temp = pd.read_csv(fname)
+            df_temp = pd.read_csv(fname, sep=self.sep)
             df_list.append(df_temp)
 
         df = pd.concat(df_list)            
@@ -50,12 +54,17 @@ class FinetunerDataset(torch.utils.data.Dataset):
         labels = list(df[self.label_column_name].values)
         self.unique_labels.update(labels)
 
+        # preprocess texts
+        if self.preprocess:
+            texts = [process_transformers(text) for text in texts]
+
         # tokenize
         tokenized_inputs = self.tokenizer(
             texts,
-            # max_length=self.max_length,
+            max_length=self.max_length,
             truncation=True,
             padding=True,
+            return_tensors='pt',
         )
 
         self.input_ids = tokenized_inputs['input_ids']
@@ -70,9 +79,9 @@ class CompressorKNNDataset(torch.utils.data.Dataset):
             text_column_name,
             label_column_name,
             ext='.csv',
-            max_length=416,
+            sep=',',
+            preprocess=True,
         ):
-        self.max_length = max_length
         self.fnames = glob.glob(f"{data_dir}/*{ext}")
         print(self.fnames)
 
@@ -80,6 +89,8 @@ class CompressorKNNDataset(torch.utils.data.Dataset):
         self.label_column_name = label_column_name
         self.texts = []
         self.labels = []
+        self.preprocess = preprocess
+        self.sep = sep
         self.unique_labels = set()
         self._build()
         
@@ -96,13 +107,17 @@ class CompressorKNNDataset(torch.utils.data.Dataset):
     
         df_list = []
         for fname in tqdm(self.fnames):
-            df_temp = pd.read_csv(fname)
+            df_temp = pd.read_csv(fname, sep=self.sep)
             df_list.append(df_temp)
         df = pd.concat(df_list)
 
         texts = list(df[self.text_column_name].values)
         labels = list(df[self.label_column_name].values)
         self.unique_labels.update(labels)
+
+        # preprocess texts
+        if self.preprocess:
+            texts = [process_transformers(text) for text in texts]
         
         self.texts = texts
         self.labels = labels

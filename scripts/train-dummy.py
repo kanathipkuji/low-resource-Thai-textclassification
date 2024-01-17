@@ -7,16 +7,14 @@ from transformers import (
 from sklearn.dummy import DummyClassifier
 
 from src.datasets import FinetunerDataset
-from src.metrics import compute_metrics
 
-#argparse
 import argparse
 
 def main():
     #argparser
     parser = argparse.ArgumentParser(
-        prog="train_sequence_classification_dummy_classifier",
-        description="train sequence classification with dummy classifier",
+        prog="train-dummy.py",
+        description="Train sequence classification with dummy classifier",
     )
     
     #required
@@ -49,8 +47,6 @@ def main():
     )
     dummy = DummyClassifier(strategy=args.strategy)
 
-    
-    
     #datasets
     train_dataset = FinetunerDataset(
         tokenizer,

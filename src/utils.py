@@ -5,7 +5,8 @@ import pythainlp
 from pythainlp.tokenize import word_tokenize
 import mmap
 
-stopwords = pythainlp.corpus.common.thai_stopwords()
+stopwords_th = pythainlp.corpus.common.thai_stopwords()
+punctuation_marks = '''!"#$%&'()*+, -./:;<=>?@[\]^_`{|}~'''
 
 import pandas as pd
 
@@ -14,14 +15,17 @@ CORPUS_METADATA_df = pd.DataFrame.from_dict([
     {'name': 'wongnai', 'is_csv': True, 'text_column_id': 0, 'delimiter': ';'},
     {'name': 'prachathai', 'is_csv': True, 'text_column_id': 3, 'delimiter': ','},
     {'name': 'thaipbs', 'is_csv': True, 'text_column_id': 1, 'delimiter': ','},
-    {'name': 'wangchanberta', 'is_csv': False},
+    {'name': 'wisesight_sentiment', 'is_csv': True, 'text_column_id': 0, 'delimiter': ','},
+    {'name': 'wangchanberta', 'is_csv': False, 'text_column_id': -1, 'delimiter': ','},
 ])
 
 def process_text(text, remove_stop_words):
     text.strip()
     words = word_tokenize(text)
     if remove_stop_words:
-        words = [word for word in words if word not in stopwords]
+        words = [word for word in words 
+                 if word not in stopwords_th
+                 and word not in punctuation_marks]
     freq = Counter(words)
     return freq
 
@@ -48,8 +52,10 @@ def process_corpora(fname, is_csv, text_column_id, delimiter, remove_stop_words)
         line_count = 0
         freq_combined = Counter()
         with open(fname, 'r') as f:
-            for line in tqdm(f):
-                freq = process_text(line)
+            num_lines = len(f.readlines())
+        with open(fname, 'r') as f:
+            for line in tqdm(f, total=num_lines):
+                freq = process_text(line, remove_stop_words)
                 freq_combined += freq
                 line_count += 1
         return freq_combined

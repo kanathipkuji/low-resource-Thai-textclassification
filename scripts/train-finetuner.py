@@ -9,6 +9,7 @@ from transformers import (
 )
 from transformers.data.processors.utils import InputFeatures
 from transformers.integrations import NeptuneCallback
+from transformers import DataCollatorWithPadding
 
 from src.datasets import FinetunerDataset
 from src.metrics import compute_metrics_with_labels
@@ -55,6 +56,7 @@ def main():
     #Dataset
     parser.add_argument("--text_column_name", type=str,)
     parser.add_argument("--label_column_name", type=str,)
+    parser.add_argument("--csv_sep", type=str, default=',')
 
     #Optuna
     parser.add_argument('--optuna', default=False, type=lambda x: (str(x).lower() in ['true', 't', 1, 'yes', 'y']))
@@ -115,21 +117,30 @@ def main():
         args.train_dir,
         text_column_name=args.text_column_name,
         label_column_name=args.label_column_name,
+        sep=args.csv_sep,
     )
     eval_dataset = FinetunerDataset(
         tokenizer,
         args.valid_dir,
         text_column_name=args.text_column_name,
         label_column_name=args.label_column_name,
+        sep=args.csv_sep,
     )
     test_dataset = FinetunerDataset(
         tokenizer,
         args.test_dir,
         text_column_name=args.text_column_name,
         label_column_name=args.label_column_name,
+        sep=args.csv_sep,
     )
     
     unique_labels = train_dataset.unique_labels
+    unique_labels_eval = eval_dataset.unique_labels
+
+    print(f'# unique labels: {len(unique_labels)}')
+    print(f'# unique labels eval: {len(unique_labels_eval)}')
+    print('train set', len(train_dataset), train_dataset[0]['input_ids'].shape)
+    print('valid set', len(eval_dataset), eval_dataset[0]['input_ids'].shape)
 
     neptune_project = args.neptune_project
     neptune_api_token = args.neptune_api_token
@@ -137,6 +148,7 @@ def main():
         project=neptune_project,
         api_token=neptune_api_token
     )
+    run['bash'].upload('./scripts/train-finetuner.sh')
     
     custom_neptune_callback = CustomNeptuneCallback(run=run, labels=unique_labels)
     neptune_callback = NeptuneCallback(project=neptune_project, api_token=neptune_api_token, run=run)
@@ -180,21 +192,9 @@ def main():
         # there should be no problem.
         return AutoModelForSequenceClassification.from_pretrained(
             "airesearch/wangchanberta-base-att-spm-uncased",
-            num_labels=len(unique_labels)
+            num_labels=len(unique_labels),
+            revision='main'
         )
-
-
-    
-    #initiate trainer
-    trainer = Trainer(
-        model_init=model_init,
-        args=training_args,
-        train_dataset=train_dataset,
-        eval_dataset=eval_dataset,
-        compute_metrics=compute_metrics,
-        callbacks=[neptune_callback, custom_neptune_callback]
-    )
-
 
     # Hyperparameter tuning
     if args.optuna:
@@ -215,12 +215,23 @@ def main():
                     )
         print(best_trial)
         run['tuning/best_trial'] = str(best_trial)
+
+    #initiate trainer
+    trainer = Trainer(
+        model_init=model_init,
+        args=training_args,
+        train_dataset=train_dataset,
+        eval_dataset=eval_dataset,
+        compute_metrics=compute_metrics,
+        callbacks=[neptune_callback, custom_neptune_callback]
+    )
     
     #train
     trainer.train()
     
     #evaluate
     trainer.evaluate()
+
     run.stop()
 
     

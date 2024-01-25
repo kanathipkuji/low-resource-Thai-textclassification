@@ -2,10 +2,13 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 from transformers import (
-    AutoTokenizer, 
+    RobertaConfig,
+    AutoConfig,
+    AutoTokenizer,
+    AutoModel, 
     AutoModelForSequenceClassification, 
     Trainer, 
-    TrainingArguments
+    TrainingArguments,
 )
 from transformers.data.processors.utils import InputFeatures
 from transformers.integrations import NeptuneCallback
@@ -14,14 +17,11 @@ from transformers import DataCollatorWithPadding
 from src.datasets import FinetunerDataset
 from src.metrics import compute_metrics_with_labels
 from src.callbacks import CustomNeptuneCallback
-# from src.finetuners import Finetuner
+from src.models import SequenceClassificationFinetuner
 
 import neptune
 
-#argparse
 import argparse
-# python train_sequence_classification_huggingface.py --model_name_or_path xlm-roberta-base \
-# --num_labels 5 --train_dir data/train_th --valid_dir data/valid_th --num_train_epochs 3
 
 def optuna_hp_space(trial):
     return {
@@ -39,6 +39,9 @@ def compute_objective(metrics):
 
 
 def main():
+    model_name = "airesearch/wangchanberta-base-att-spm-uncased"
+    # model_name = "bert-base-cased"
+
     #argparser
     parser = argparse.ArgumentParser(
         prog="train_sequence_classification_huggingface",
@@ -46,8 +49,6 @@ def main():
     )
     
     #required
-    # parser.add_argument("--model_name_or_path", type=str,)
-    # parser.add_argument("--num_labels", type=int,)
     parser.add_argument("--train_dir", type=str,)
     parser.add_argument("--valid_dir", type=str,)
     parser.add_argument("--test_dir", type=str,)
@@ -90,7 +91,21 @@ def main():
     parser.add_argument("--adam_epsilon", type=float, default=1e-8)
     parser.add_argument("--max_grad_norm", type=float, default=1.0)
     parser.add_argument('--dataloader_drop_last', default=False, type=lambda x: (str(x).lower() in ['true', 't', 1, 'yes', 'y']))
-    
+
+    #Model configs
+    parser.add_argument('--ib', default=False, type=lambda x: (str(x).lower() in ['true', 't', 1, 'yes', 'y']))
+    parser.add_argument("--beta", type=float, default=1.0, help="Defines the weight for the information bottleneck\
+            loss.")
+    parser.add_argument("--sample_size", type=int, default=5, help="Defines the number of samples for the ib method.")
+    parser.add_argument("--ib_dim", default=128, type=int,
+                        help="Specifies the dimension of the information bottleneck.")
+    parser.add_argument("--kl_annealing", choices=[None, "linear"], default=None)
+    parser.add_argument("--dropout", type=float, default=None, help="dropout rate.")
+    parser.add_argument("--activation", type=str, choices=["tanh", "sigmoid", "relu"], \
+                        default="relu")
+    parser.add_argument("--deterministic", default=True, type=lambda x: (str(x).lower() in ['true', 't', 1, 'yes', 'y']))
+
+
     #Neptune AI
     parser.add_argument('--neptune_project', type=str)
     parser.add_argument('--neptune_api_token', type=str)
@@ -106,7 +121,7 @@ def main():
     #initialize tokenizers
 
     tokenizer = AutoTokenizer.from_pretrained(
-        "airesearch/wangchanberta-base-att-spm-uncased",
+        model_name,
         revision='main',
         model_max_length=416
     )
@@ -136,6 +151,7 @@ def main():
     
     unique_labels = train_dataset.unique_labels
     unique_labels_eval = eval_dataset.unique_labels
+    num_labels = len(unique_labels)
 
     print(f'# unique labels: {len(unique_labels)}')
     print(f'# unique labels eval: {len(unique_labels_eval)}')
@@ -187,13 +203,40 @@ def main():
         report_to='none',
     )
 
+    config = RobertaConfig.from_pretrained(
+        model_name,
+        num_labels=num_labels,
+        revision='main',
+    )
+    print('config', config)
+
+    model2 = AutoModel.from_config(config)
+    print(model2)
+
+
+
+    config.ib = args.ib
+    config.ib_dim = args.ib_dim
+    config.beta = args.beta
+    config.sample_size = args.sample_size
+    config.kl_annealing = args.kl_annealing
+    if args.dropout is not None:
+        config.hidden_dropout_prob = args.dropout
+    config.hidden_dim = (768 + args.ib_dim) // 2
+    config.activation = args.activation
+    config.deterministic = args.deterministic
+
+    config.model_name = model_name
+
+
     def model_init(trial):
         # initialize models using the number of unique labels train_dataset. Since labels in train_dataset is stratified so that it includes all possible labels, 
         # there should be no problem.
-        return AutoModelForSequenceClassification.from_pretrained(
-            "airesearch/wangchanberta-base-att-spm-uncased",
-            num_labels=len(unique_labels),
-            revision='main'
+        return SequenceClassificationFinetuner.from_pretrained(
+            model_name,
+            config=config,
+            # num_labels=num_labels,
+            # revision='main'
         )
 
     # Hyperparameter tuning

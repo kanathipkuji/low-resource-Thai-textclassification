@@ -1,5 +1,5 @@
 dataset_name='wongnai'
-shot='full'
+shot='5'
 text='review'
 label='star'
 csv_sep=';'

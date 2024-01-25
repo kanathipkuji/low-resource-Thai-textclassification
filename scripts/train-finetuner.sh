@@ -1,8 +1,10 @@
 dataset_name='tscc'
-shot='20'
+shot='5'
 text='filtered_fact'
 label='label'
 csv_sep=','
+# arch='wangchanberta'
+arch='vib'
 neptune_api_token='eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiIxZDIyNDdmMi05YTY3LTRmYTktODk3OC05ZmMxZmU1NmUxMjAifQ=='
 
 python scripts/train-finetuner.py \
@@ -23,7 +25,7 @@ python scripts/train-finetuner.py \
     --per_device_eval_batch_size 64 \
     --warmup_steps 500 \
     --weight_decay 0.01 \
-    --neptune_project kanathip137/$dataset_name-$shot-wangchanberta \
+    --neptune_project kanathip137/$dataset_name-$shot-$arch \
     --neptune_api_token $neptune_api_token \
-    # --optuna T \
+    --ib True
     

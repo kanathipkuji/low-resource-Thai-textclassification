@@ -1,8 +1,9 @@
 dataset_name='tscc'
-shot='5'
+shot='20'
 text='filtered_fact'
 label='label'
 csv_sep=','
+vib='True'
 neptune_api_token='eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiIxZDIyNDdmMi05YTY3LTRmYTktODk3OC05ZmMxZmU1NmUxMjAifQ=='
 
 python scripts/train-finetuner.py \
@@ -13,8 +14,8 @@ python scripts/train-finetuner.py \
     --label_column_name $label \
     --csv_sep "$csv_sep" \
     --deterministic F \
-    --output_dir "./results/$dataset_name-$shot" \
-    --logging_dir "./results/$dataset_name-$shot-logs" \
+    --output_dir "./results/$dataset_name-$shot-$vib" \
+    --logging_dir "./results/$dataset_name-$shot-$vib-logs" \
     --logging_steps 5 \
     --evaluation_strategy epoch \
     --save_strategy epoch \
@@ -25,6 +26,6 @@ python scripts/train-finetuner.py \
     --weight_decay 0.01 \
     --neptune_project kanathip137/$dataset_name-finetuner \
     --neptune_api_token $neptune_api_token \
-    --run_tag "$shot-shot"
-    # --ib True \
+    --run_tags "$dataset_name" "$shot-shot" \
+    --ib $vib \
     

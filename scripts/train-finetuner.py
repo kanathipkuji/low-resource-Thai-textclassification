@@ -1,6 +1,9 @@
 import logging
 logging.basicConfig(level=logging.INFO)
 
+import torch
+from torch.utils.data import DataLoader
+import pandas as pd
 from transformers import (
     RobertaConfig,
     PretrainedConfig,
@@ -16,12 +19,17 @@ from transformers.integrations import NeptuneCallback
 from transformers import DataCollatorWithPadding
 
 from src.datasets import FinetunerDataset
-from src.metrics import compute_metrics_with_labels
+from src.metrics import compute_metrics_with_labels, single_label_metrics
 from src.callbacks import CustomNeptuneCallback
 from src.models import RobertaForSequenceClassification
+from src.plot_utils import plot_confusion_matrix
+
 
 import neptune
+from neptune.types import File
 
+import os
+import time
 import argparse
 
 def optuna_hp_space(trial):
@@ -38,6 +46,31 @@ def optuna_hp_space(trial):
 def compute_objective(metrics):
     return metrics["eval_loss"], metrics["eval_f1"], metrics["eval_accuracy"]
 
+def evaluate_model(model, test_dataset, compute_metrics, batch_size=32):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.to(device)
+    model.eval()
+
+    dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+
+    all_predictions = []
+    all_labels = []
+
+    with torch.no_grad():
+        for batch in dataloader:
+            inputs = batch["input_ids"].to(device)
+            attention_mask = batch["attention_mask"].to(device)
+            labels = batch["labels"].to(device)
+
+            outputs = model(inputs, attention_mask=attention_mask)
+            # print(outputs)
+            predictions = torch.argmax(outputs.logits, dim=1)
+
+            all_predictions.extend(predictions.cpu().numpy())
+            all_labels.extend(labels.cpu().numpy())
+
+    metric_result = single_label_metrics(all_predictions, all_labels)
+    return metric_result
 
 def main():
     model_name = "airesearch/wangchanberta-base-att-spm-uncased"
@@ -110,7 +143,7 @@ def main():
     #Neptune AI
     parser.add_argument('--neptune_project', type=str)
     parser.add_argument('--neptune_api_token', type=str)
-    parser.add_argument('--run_tag', type=str)
+    parser.add_argument('--run_tags', nargs='*', default=[])
     
     #others
     parser.add_argument("--seed", type=int, default=1412)
@@ -164,17 +197,18 @@ def main():
     neptune_api_token = args.neptune_api_token
     run = neptune.init_run(
         project=neptune_project,
-        api_token=neptune_api_token
+        api_token=neptune_api_token,
+        tags=args.run_tags
     )
+    run_id = run['sys/id'].fetch()
     run['bash'].upload('./scripts/train-finetuner.sh')
     if args.ib:
-        run['sys/tag'].add('vib')
+        run['sys/tags'].add('vib')
     else:
-        run['sys/tag'].add('no-vib')
-    run['sys/tag'].add(args.run_tag)
+        run['sys/tags'].add('no-vib')
     
-    custom_neptune_callback = CustomNeptuneCallback(run=run, labels=unique_labels)
-    neptune_callback = NeptuneCallback(project=neptune_project, api_token=neptune_api_token, run=run)
+    custom_neptune_callback = CustomNeptuneCallback(run=run, api_token=neptune_api_token, project=neptune_project, labels=unique_labels)
+    # neptune_callback = NeptuneCallback(project=neptune_project, api_token=neptune_api_token, run=run)
     compute_metrics = compute_metrics_with_labels(unique_labels)
 
     #training args
@@ -236,6 +270,11 @@ def main():
             model_name,
             config=config,
         )
+    
+    model = RobertaForSequenceClassification.from_pretrained(
+        model_name,
+        config=config,
+    )
 
     # Hyperparameter tuning
     if args.optuna:
@@ -259,23 +298,45 @@ def main():
 
     #initiate trainer
     trainer = Trainer(
-        model_init=model_init,
+        model=model,
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
         compute_metrics=compute_metrics,
-        callbacks=[neptune_callback, custom_neptune_callback]
+        callbacks=[custom_neptune_callback]
     )
     
-    #train
+    # Train
     trainer.train()
-    
-    #evaluate
-    test_result = trainer.evaluate(eval_set=test_dataset)
-    run['test'] = str(test_result)
-    
-    run.stop()
+    # run.stop()
+    print('Done Training!')
 
+    # Evaluate
+    checkpoints = [checkpoint.split('-')[-1] for checkpoint in os.listdir(args.output_dir)]
+    best_checkpoint = sorted(checkpoints)[-1]
+
+    model = RobertaForSequenceClassification.from_pretrained(f'{args.output_dir}/checkpoint-{best_checkpoint}')
+    print('Done loading best checkpoint')
+
+    test_results = evaluate_model(model, test_dataset, compute_metrics)
+    confusion_matrix = test_results['confusion_matrix']
+    confusion_matrix_fig = plot_confusion_matrix(confusion_matrix, unique_labels)
+
+    report = test_results['report']
+    report_df = pd.DataFrame(report).transpose()
+    
+    print('Done Evaluating!')
+    run = neptune.init_run(
+        with_id=run_id,
+        project=neptune_project,
+        api_token=neptune_api_token,
+    )
+    run['test/eval/accuracy'] = str(test_results['accuracy'])
+    run['test/eval/f1'] = str(test_results['f1'])
+    run['test/eval/confusion_matrix'].upload(confusion_matrix_fig)
+    run['test/eval/report'].upload(File.as_html(report_df))
+    print(f'Test Evaluation:\n {str(test_results)}')
+    run.stop()
     
 if __name__ == "__main__":
     main()

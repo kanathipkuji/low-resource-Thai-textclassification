@@ -3,6 +3,7 @@ logging.basicConfig(level=logging.INFO)
 
 from transformers import (
     RobertaConfig,
+    PretrainedConfig,
     AutoConfig,
     AutoTokenizer,
     AutoModel, 
@@ -17,7 +18,7 @@ from transformers import DataCollatorWithPadding
 from src.datasets import FinetunerDataset
 from src.metrics import compute_metrics_with_labels
 from src.callbacks import CustomNeptuneCallback
-from src.models import SequenceClassificationFinetuner
+from src.models import RobertaForSequenceClassification
 
 import neptune
 
@@ -109,6 +110,7 @@ def main():
     #Neptune AI
     parser.add_argument('--neptune_project', type=str)
     parser.add_argument('--neptune_api_token', type=str)
+    parser.add_argument('--run_tag', type=str)
     
     #others
     parser.add_argument("--seed", type=int, default=1412)
@@ -165,6 +167,11 @@ def main():
         api_token=neptune_api_token
     )
     run['bash'].upload('./scripts/train-finetuner.sh')
+    if args.ib:
+        run['sys/tag'].add('vib')
+    else:
+        run['sys/tag'].add('no-vib')
+    run['sys/tag'].add(args.run_tag)
     
     custom_neptune_callback = CustomNeptuneCallback(run=run, labels=unique_labels)
     neptune_callback = NeptuneCallback(project=neptune_project, api_token=neptune_api_token, run=run)
@@ -208,13 +215,6 @@ def main():
         num_labels=num_labels,
         revision='main',
     )
-    print('config', config)
-
-    model2 = AutoModel.from_config(config)
-    print(model2)
-
-
-
     config.ib = args.ib
     config.ib_dim = args.ib_dim
     config.beta = args.beta
@@ -232,11 +232,9 @@ def main():
     def model_init(trial):
         # initialize models using the number of unique labels train_dataset. Since labels in train_dataset is stratified so that it includes all possible labels, 
         # there should be no problem.
-        return SequenceClassificationFinetuner.from_pretrained(
+        return RobertaForSequenceClassification.from_pretrained(
             model_name,
             config=config,
-            # num_labels=num_labels,
-            # revision='main'
         )
 
     # Hyperparameter tuning
@@ -273,8 +271,9 @@ def main():
     trainer.train()
     
     #evaluate
-    trainer.evaluate()
-
+    test_result = trainer.evaluate(eval_set=test_dataset)
+    run['test'] = str(test_result)
+    
     run.stop()
 
     

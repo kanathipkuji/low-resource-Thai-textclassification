@@ -17,7 +17,7 @@ from transformers.models.roberta.modeling_roberta import (
 class RobertaForSequenceClassification(RobertaPreTrainedModel):
     def __init__(self, config): 
         super().__init__(config)
-        self.cur_epoch = 0
+        self.cur_train_epoch = 0
         self.num_labels = config.num_labels
         self.roberta = RobertaModel(config)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
@@ -44,20 +44,7 @@ class RobertaForSequenceClassification(RobertaPreTrainedModel):
 
             self.classifier = nn.Linear(self.ib_dim, config.num_labels)
 
-            # if config.normal_classifier:
-            #     self.classifier = nn.Linear(self.ib_dim, config.num_labels)
-            # else:
-            # if self.ib:
-            #     config.hidden_size = self.ib_dim
-                
-            # self.classifier = RobertaClassificationHead(config)
-                # self.classifier = nn.Sequential(
-                #     nn.Dropout()
-                # )
-
-
         else:
-            # self.classifier = nn.Linear(config.hidden_size, config.num_labels)
             self.classifier = RobertaClassificationHead(config)
 
         self.post_init()
@@ -134,8 +121,9 @@ class RobertaForSequenceClassification(RobertaPreTrainedModel):
         output_hidden_states=None,
         return_dict=True,
         sampling_type="iid",
+        during_train=True,
     ):
-        self.cur_epoch += 1
+        self.cur_train_epoch += 1
         outputs = self.roberta(
             input_ids,
             attention_mask=attention_mask,
@@ -169,7 +157,10 @@ class RobertaForSequenceClassification(RobertaPreTrainedModel):
             z = self.reparameterize(mu, std)
 
             if self.kl_annealing == "linear":
-                beta = min(1.0, self.cur_epoch*self.beta)
+                if during_train:
+                    beta = min(1.0, self.cur_train_epoch*self.beta)
+                else:
+                    beta = min(1.0, self.beta)
                  
             sampled_logits, logits = self.get_logits(z, mu, sampling_type)
             if labels is not None:

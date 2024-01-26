@@ -13,6 +13,7 @@ from transformers import (
     AutoModelForSequenceClassification, 
     Trainer, 
     TrainingArguments,
+    EarlyStoppingCallback,
 )
 from transformers.data.processors.utils import InputFeatures
 from transformers.integrations import NeptuneCallback
@@ -58,12 +59,12 @@ def evaluate_model(model, test_dataset, compute_metrics, batch_size=32):
 
     with torch.no_grad():
         for batch in dataloader:
-            inputs = batch["input_ids"].to(device)
+            input_ids = batch["input_ids"].to(device)
             attention_mask = batch["attention_mask"].to(device)
             labels = batch["labels"].to(device)
 
-            outputs = model(inputs, attention_mask=attention_mask)
-            # print(outputs)
+            # Sampling type = 'argmax' during evaluation
+            outputs = model(input_ids, attention_mask=attention_mask, sampling_type='argmax', during_train=False)
             predictions = torch.argmax(outputs.logits, dim=1)
 
             all_predictions.extend(predictions.cpu().numpy())
@@ -74,7 +75,6 @@ def evaluate_model(model, test_dataset, compute_metrics, batch_size=32):
 
 def main():
     model_name = "airesearch/wangchanberta-base-att-spm-uncased"
-    # model_name = "bert-base-cased"
 
     #argparser
     parser = argparse.ArgumentParser(
@@ -125,6 +125,12 @@ def main():
     parser.add_argument("--adam_epsilon", type=float, default=1e-8)
     parser.add_argument("--max_grad_norm", type=float, default=1.0)
     parser.add_argument('--dataloader_drop_last', default=False, type=lambda x: (str(x).lower() in ['true', 't', 1, 'yes', 'y']))
+
+    # Early Stopping
+    parser.add_argument("--early_stopping_patience", type=int, default=3)
+    parser.add_argument("--early_stopping_threshold", type=float, default=0.01)
+
+
 
     #Model configs
     parser.add_argument('--ib', default=False, type=lambda x: (str(x).lower() in ['true', 't', 1, 'yes', 'y']))
@@ -208,7 +214,6 @@ def main():
         run['sys/tags'].add('no-vib')
     
     custom_neptune_callback = CustomNeptuneCallback(run=run, api_token=neptune_api_token, project=neptune_project, labels=unique_labels)
-    # neptune_callback = NeptuneCallback(project=neptune_project, api_token=neptune_api_token, run=run)
     compute_metrics = compute_metrics_with_labels(unique_labels)
 
     #training args
@@ -303,7 +308,9 @@ def main():
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
         compute_metrics=compute_metrics,
-        callbacks=[custom_neptune_callback]
+        callbacks=[EarlyStoppingCallback(early_stopping_patience=args.early_stopping_patience,
+                                         early_stopping_threshold=args.early_stopping_threshold), 
+                   custom_neptune_callback]
     )
     
     # Train

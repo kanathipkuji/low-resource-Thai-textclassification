@@ -22,6 +22,7 @@ COPY environment.yml /home/workspace
 RUN conda env create -f environment.yml
 RUN conda install -c anaconda gcc_linux-64
 RUN pip install neptune seaborn optuna npc_gzip
+RUN pip install neptune-optuna
 RUN pip install -q emoji pythainlp==2.2.4 sefr_cut tinydb seqeval sentencepiece pydantic jsonlines
 RUN pip install --no-deps thai2transformers==0.1.2
 RUN pip install accelerate -U

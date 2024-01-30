@@ -78,8 +78,8 @@ def main():
 
     #argparser
     parser = argparse.ArgumentParser(
-        prog="train_sequence_classification_huggingface",
-        description="train sequence classification with huggingface Trainer",
+        prog="train-finetuner.py",
+        description="train finetuner for sequence classification with huggingface Trainer",
     )
     
     #required
@@ -175,7 +175,7 @@ def main():
         label_column_name=args.label_column_name,
         sep=args.csv_sep,
     )
-    eval_dataset = FinetunerDataset(
+    valid_dataset = FinetunerDataset(
         tokenizer,
         args.valid_dir,
         text_column_name=args.text_column_name,
@@ -191,13 +191,13 @@ def main():
     )
     
     unique_labels = train_dataset.unique_labels
-    unique_labels_eval = eval_dataset.unique_labels
+    unique_labels_eval = valid_dataset.unique_labels
     num_labels = len(unique_labels)
 
     print(f'# unique labels: {len(unique_labels)}')
     print(f'# unique labels eval: {len(unique_labels_eval)}')
     print('train set', len(train_dataset), train_dataset[0]['input_ids'].shape)
-    print('valid set', len(eval_dataset), eval_dataset[0]['input_ids'].shape)
+    print('valid set', len(valid_dataset), valid_dataset[0]['input_ids'].shape)
 
     neptune_project = args.neptune_project
     neptune_api_token = args.neptune_api_token
@@ -287,7 +287,7 @@ def main():
             model_init=model_init,
             args=training_args,
             train_dataset=train_dataset,
-            eval_dataset=eval_dataset,
+            eval_dataset=valid_dataset,
             compute_metrics=compute_metrics,
         )
 
@@ -306,7 +306,7 @@ def main():
         model=model,
         args=training_args,
         train_dataset=train_dataset,
-        eval_dataset=eval_dataset,
+        eval_dataset=valid_dataset,
         compute_metrics=compute_metrics,
         callbacks=[EarlyStoppingCallback(early_stopping_patience=args.early_stopping_patience,
                                          early_stopping_threshold=args.early_stopping_threshold), 

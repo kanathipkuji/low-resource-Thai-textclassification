@@ -1,9 +1,9 @@
-dataset_name='wongnai'
-shot='5'
-text='review'
-label='star'
-csv_sep=';'
-vib='True'
+dataset_name='tscc'
+shot='full'
+text='filtered_fact'
+label='label'
+csv_sep=','
+vib='False'
 neptune_api_token='eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiIxZDIyNDdmMi05YTY3LTRmYTktODk3OC05ZmMxZmU1NmUxMjAifQ=='
 
 python scripts/train-finetuner.py \
@@ -30,5 +30,6 @@ python scripts/train-finetuner.py \
     --ib $vib \
     --ib_dim 384 \
     --beta 1e-05 \
+    --early_stopping_patience 5 \
     --kl_annealing linear \
     

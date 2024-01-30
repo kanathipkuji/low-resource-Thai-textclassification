@@ -60,15 +60,16 @@ def main():
     #Neptune AI
     parser.add_argument('--neptune_project', type=str)
     parser.add_argument('--neptune_api_token', type=str)
+    parser.add_argument('--run_tags', nargs='*', default=[])
     
-
     args = parser.parse_args()
 
     neptune_project = args.neptune_project
     neptune_api_token = args.neptune_api_token
     run = neptune.init_run(
         project=neptune_project,
-        api_token=neptune_api_token
+        api_token=neptune_api_token,
+        tags=args.run_tags
     )
     neptune_callback = optuna_utils.NeptuneCallback(run)
     run['bash'].upload('./scripts/evaluate-gzip.sh')

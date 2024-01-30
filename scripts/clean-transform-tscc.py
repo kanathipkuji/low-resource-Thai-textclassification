@@ -34,8 +34,6 @@ def get_relevant_article_ids(df):
     print('# Article IDs (after dropping non frequent articles): ', len(lawids))
     return lawids
 
-
-
 def attach_filtered_fact(df):
     pattern = r'<discr>.*?</discr>'
     df['filtered_fact'] = df.fact.apply(lambda x: re.sub(pattern, '', x)).copy()
